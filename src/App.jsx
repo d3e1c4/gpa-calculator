@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calculator, Target, Plus, Trash2, GraduationCap } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Calculator, Target, Plus, Trash2, GraduationCap, RotateCcw, Download } from 'lucide-react';
 
 const gradePoints = {
   'A+': 4.00, 'A': 4.00, 'A-': 3.70,
@@ -8,56 +8,157 @@ const gradePoints = {
   'D+': 1.30, 'D': 1.00, 'E': 0.00
 };
 
+const STORAGE_KEY_COURSES = 'gpa_calc_courses';
+const STORAGE_KEY_TARGETS = 'gpa_calc_targets';
+const STORAGE_KEY_TAB = 'gpa_calc_tab';
+
+const DEFAULT_COURSES = [
+  { id: 1, name: 'Module 1', credits: 3, grade: 'A' },
+  { id: 2, name: 'Module 2', credits: 3, grade: 'B+' },
+  { id: 3, name: 'Module 3', credits: 2, grade: 'A-' }
+];
+
+const DEFAULT_TARGETS = {
+  y2s1: 3.33, y2s2: 3.75,
+  y3s1: 3.75, y3s2: 3.75,
+  y4s1: 3.75, y4s2: 3.75
+};
+
+/* Safe localStorage helpers */
+function loadFromStorage(key, fallback) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* quota exceeded etc. — silently ignore */ }
+}
+
+/* Degree class helper */
+function getDegreeClass(gpa) {
+  const val = parseFloat(gpa);
+  if (val >= 3.70) return { label: 'First Class', key: 'first' };
+  if (val >= 3.30) return { label: 'Second Class Upper', key: 'second-upper' };
+  if (val >= 2.70) return { label: 'Second Class Lower', key: 'second-lower' };
+  if (val >= 2.00) return { label: 'General Pass', key: 'pass' };
+  return { label: 'Below Pass', key: 'fail' };
+}
+
 export default function GPADashboard() {
-  const [activeTab, setActiveTab] = useState('calculator');
+  const [activeTab, setActiveTab] = useState(() => loadFromStorage(STORAGE_KEY_TAB, 'calculator'));
+  const [courses, setCourses] = useState(() => loadFromStorage(STORAGE_KEY_COURSES, DEFAULT_COURSES));
+  const [targets, setTargets] = useState(() => loadFromStorage(STORAGE_KEY_TARGETS, DEFAULT_TARGETS));
+  const newModuleRef = useRef(null);
 
-  const [courses, setCourses] = useState([
-    { id: 1, name: 'Module 1', credits: 3, grade: 'A' },
-    { id: 2, name: 'Module 2', credits: 3, grade: 'B+' },
-    { id: 3, name: 'Module 3', credits: 2, grade: 'A-' }
-  ]);
+  /* Persist to localStorage on changes */
+  useEffect(() => { saveToStorage(STORAGE_KEY_COURSES, courses); }, [courses]);
+  useEffect(() => { saveToStorage(STORAGE_KEY_TARGETS, targets); }, [targets]);
+  useEffect(() => { saveToStorage(STORAGE_KEY_TAB, activeTab); }, [activeTab]);
 
-  const [targets, setTargets] = useState({
-    y2s1: 3.33, y2s2: 3.75,
-    y3s1: 3.75, y3s2: 3.75,
-    y4s1: 3.75, y4s2: 3.75
-  });
-
-  const calculateGPA = () => {
+  /* Memoized GPA calculations — only recompute when data actually changes */
+  const gpaVal = useMemo(() => {
     let totalCredits = 0;
     let totalPoints = 0;
     courses.forEach(course => {
-      totalCredits += Number(course.credits);
-      totalPoints += Number(course.credits) * gradePoints[course.grade];
+      const credits = Number(course.credits);
+      if (credits > 0 && gradePoints[course.grade] !== undefined) {
+        totalCredits += credits;
+        totalPoints += credits * gradePoints[course.grade];
+      }
     });
-    return totalCredits === 0 ? 0 : (totalPoints / totalCredits).toFixed(2);
-  };
+    return totalCredits === 0 ? '0.00' : (totalPoints / totalCredits).toFixed(2);
+  }, [courses]);
 
-  const calculateWGPA = () => {
+  const wgpaVal = useMemo(() => {
     const y2Avg = (Number(targets.y2s1) + Number(targets.y2s2)) / 2;
     const y3Avg = (Number(targets.y3s1) + Number(targets.y3s2)) / 2;
     const y4Avg = (Number(targets.y4s1) + Number(targets.y4s2)) / 2;
     const wgpa = (y2Avg * 0.20) + (y3Avg * 0.30) + (y4Avg * 0.50);
     return wgpa.toFixed(2);
-  };
+  }, [targets]);
 
-  const handleAddCourse = () => {
-    setCourses([...courses, { id: Date.now(), name: '', credits: 3, grade: 'A' }]);
-  };
+  /* Dynamic document title */
+  useEffect(() => {
+    const val = activeTab === 'calculator' ? gpaVal : wgpaVal;
+    document.title = `GPA: ${val} — GPA Calculator`;
+  }, [gpaVal, wgpaVal, activeTab]);
 
-  const handleRemoveCourse = (id) => {
-    if (courses.length > 1) {
-      setCourses(courses.filter(c => c.id !== id));
-    }
-  };
 
-  const handleCourseChange = (id, field, value) => {
-    setCourses(courses.map(c => c.id === id ? { ...c, [field]: value } : c));
-  };
 
-  const handleTargetChange = (sem, value) => {
-    setTargets({ ...targets, [sem]: value });
-  };
+  /* Handlers with useCallback to avoid unnecessary child re-renders */
+  const handleAddCourse = useCallback(() => {
+    const newId = Date.now();
+    setCourses(prev => [...prev, { id: newId, name: '', credits: 3, grade: 'A' }]);
+    // Focus the new module's name input after render
+    setTimeout(() => {
+      if (newModuleRef.current) {
+        newModuleRef.current.focus();
+      }
+    }, 50);
+  }, []);
+
+  const handleRemoveCourse = useCallback((id) => {
+    setCourses(prev => prev.length > 1 ? prev.filter(c => c.id !== id) : prev);
+  }, []);
+
+  const handleCourseChange = useCallback((id, field, value) => {
+    setCourses(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      // Validate credits: clamp between 1 and 8
+      if (field === 'credits') {
+        const num = Number(value);
+        if (value === '') return { ...c, credits: '' };
+        if (isNaN(num) || num < 1) return { ...c, credits: 1 };
+        if (num > 8) return { ...c, credits: 8 };
+        return { ...c, credits: Math.floor(num) };
+      }
+      return { ...c, [field]: value };
+    }));
+  }, []);
+
+  const handleTargetChange = useCallback((sem, value) => {
+    setTargets(prev => ({ ...prev, [sem]: value }));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setCourses(DEFAULT_COURSES);
+    setTargets(DEFAULT_TARGETS);
+  }, []);
+
+  /* Export as text */
+  const handleExport = useCallback(() => {
+    const lines = [];
+    lines.push('=== GPA Calculator Report ===');
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push('');
+
+    lines.push('--- Semester GPA ---');
+    courses.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.name || 'Unnamed'} | Credits: ${c.credits} | Grade: ${c.grade} | Points: ${gradePoints[c.grade]}`);
+    });
+    lines.push(`  Semester GPA: ${gpaVal} (${getDegreeClass(gpaVal).label})`);
+    lines.push('');
+
+    lines.push('--- WGPA Target ---');
+    lines.push(`  Y2 S1: ${Number(targets.y2s1).toFixed(2)} | Y2 S2: ${Number(targets.y2s2).toFixed(2)}`);
+    lines.push(`  Y3 S1: ${Number(targets.y3s1).toFixed(2)} | Y3 S2: ${Number(targets.y3s2).toFixed(2)}`);
+    lines.push(`  Y4 S1: ${Number(targets.y4s1).toFixed(2)} | Y4 S2: ${Number(targets.y4s2).toFixed(2)}`);
+    lines.push(`  Estimated WGPA: ${wgpaVal} (${getDegreeClass(wgpaVal).label})`);
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gpa-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [courses, gpaVal, targets, wgpaVal]);
 
   const getGPAColor = (gpa) => {
     const val = parseFloat(gpa);
@@ -67,8 +168,18 @@ export default function GPADashboard() {
     return { bg: '#ffebe9', border: '#ffcecb', text: '#d1242f' };
   };
 
-  const gpaVal = calculateGPA();
-  const wgpaVal = calculateWGPA();
+  /* Total credits/points for summary */
+  const { totalCredits, totalPoints } = useMemo(() => {
+    let tc = 0, tp = 0;
+    courses.forEach(c => {
+      const cr = Number(c.credits);
+      if (cr > 0 && gradePoints[c.grade] !== undefined) {
+        tc += cr;
+        tp += cr * gradePoints[c.grade];
+      }
+    });
+    return { totalCredits: tc, totalPoints: tp.toFixed(1) };
+  }, [courses]);
 
   return (
     <div style={{ backgroundColor: '#ffffff', minHeight: '100vh' }}>
@@ -89,12 +200,56 @@ export default function GPADashboard() {
           padding: '0 16px',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          justifyContent: 'space-between',
         }}>
-          <GraduationCap style={{ width: '24px', height: '24px', color: '#1f2328' }} />
-          <span style={{ fontSize: '16px', fontWeight: 600, color: '#1f2328' }}>
-            GPA Calculator
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <GraduationCap style={{ width: '24px', height: '24px', color: '#1f2328' }} />
+            <span style={{ fontSize: '16px', fontWeight: 600, color: '#1f2328' }}>
+              GPA Calculator
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleExport}
+              title="Export Report"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#1f2328',
+                backgroundColor: '#f6f8fa',
+                border: '1px solid #d1d9e0',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              <Download style={{ width: '14px', height: '14px' }} />
+              Export
+            </button>
+            <button
+              onClick={handleReset}
+              title="Reset All Data"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#636c76',
+                backgroundColor: '#f6f8fa',
+                border: '1px solid #d1d9e0',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              <RotateCcw style={{ width: '14px', height: '14px' }} />
+              Reset
+            </button>
+          </div>
         </div>
       </header>
 
@@ -172,9 +327,14 @@ export default function GPADashboard() {
                 flexWrap: 'wrap',
                 gap: '8px',
               }}>
-                <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2328', margin: 0 }}>
-                  Calculate Current Semester GPA
-                </h2>
+                <div>
+                  <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2328', margin: 0 }}>
+                    Calculate Current Semester GPA
+                  </h2>
+                  <span style={{ fontSize: '12px', color: '#636c76' }}>
+                    {courses.length} module{courses.length !== 1 ? 's' : ''} · {totalCredits} credits · {totalPoints} quality points
+                  </span>
+                </div>
                 <button
                   onClick={handleAddCourse}
                   style={{
@@ -185,14 +345,14 @@ export default function GPADashboard() {
                     fontSize: '12px',
                     fontWeight: 500,
                     color: '#ffffff',
-                    backgroundColor: '#1f883d',
+                    backgroundColor: 'rgb(9, 105, 218)',
                     border: '1px solid rgba(27,31,36,0.15)',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     transition: 'background-color 0.15s ease',
                   }}
-                  onMouseEnter={e => e.target.style.backgroundColor = '#1a7f37'}
-                  onMouseLeave={e => e.target.style.backgroundColor = '#1f883d'}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(10, 87, 175, 1)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgb(9, 105, 218)'}
                 >
                   <Plus style={{ width: '14px', height: '14px' }} />
                   Add Module
@@ -224,6 +384,7 @@ export default function GPADashboard() {
                     </span>
 
                     <input
+                      ref={index === courses.length - 1 ? newModuleRef : null}
                       type="text"
                       placeholder="Module Name"
                       value={course.name}
@@ -293,6 +454,18 @@ export default function GPADashboard() {
                       </select>
                     </div>
 
+                    {/* Per-row grade point display */}
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#636c76',
+                      fontFamily: 'monospace',
+                      minWidth: '32px',
+                      textAlign: 'right',
+                    }}>
+                      {gradePoints[course.grade]?.toFixed(1)}
+                    </span>
+
                     <button
                       onClick={() => handleRemoveCourse(course.id)}
                       style={{
@@ -305,8 +478,8 @@ export default function GPADashboard() {
                         opacity: courses.length > 1 ? 1 : 0.4,
                         transition: 'color 0.15s',
                       }}
-                      onMouseEnter={e => { if (courses.length > 1) e.target.style.color = '#d1242f'; }}
-                      onMouseLeave={e => e.target.style.color = '#636c76'}
+                      onMouseEnter={e => { if (courses.length > 1) e.currentTarget.style.color = '#d1242f'; }}
+                      onMouseLeave={e => e.currentTarget.style.color = '#636c76'}
                       title="Remove Module"
                     >
                       <Trash2 style={{ width: '16px', height: '16px' }} />
@@ -335,6 +508,14 @@ export default function GPADashboard() {
                 lineHeight: 1.2,
               }}>
                 {gpaVal}
+              </div>
+              <div style={{
+                marginTop: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: getGPAColor(gpaVal).text,
+              }}>
+                {getDegreeClass(gpaVal).label}
               </div>
             </div>
           </div>
@@ -384,7 +565,6 @@ export default function GPADashboard() {
 
               {/* Year sections */}
               <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Year 2 */}
                 <YearSection
                   year="Year 2"
                   weight="20%"
@@ -392,8 +572,6 @@ export default function GPADashboard() {
                   sem2={{ key: 'y2s2', value: targets.y2s2 }}
                   onChange={handleTargetChange}
                 />
-
-                {/* Year 3 */}
                 <YearSection
                   year="Year 3"
                   weight="30%"
@@ -401,8 +579,6 @@ export default function GPADashboard() {
                   sem2={{ key: 'y3s2', value: targets.y3s2 }}
                   onChange={handleTargetChange}
                 />
-
-                {/* Year 4 */}
                 <YearSection
                   year="Year 4"
                   weight="50%"
@@ -432,6 +608,14 @@ export default function GPADashboard() {
               }}>
                 {wgpaVal}
               </div>
+              <div style={{
+                marginTop: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: getGPAColor(wgpaVal).text,
+              }}>
+                {getDegreeClass(wgpaVal).label}
+              </div>
               {parseFloat(wgpaVal) >= 3.70 && (
                 <div style={{
                   marginTop: '12px',
@@ -446,33 +630,25 @@ export default function GPADashboard() {
                   border: '1px solid #aceebb',
                   borderRadius: '20px',
                 }}>
-                  🎓 First Class Target Reached!
+                  First Class Target Reached!
                 </div>
               )}
             </div>
           </div>
         )}
+
+
       </main>
 
-      {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid #d1d9e0',
-        padding: '24px 16px',
-        textAlign: 'center',
-        fontSize: '12px',
-        color: '#636c76',
-        marginTop: '40px',
-      }}>
-        <span>GPA Calculator</span>
-        <span style={{ margin: '0 8px' }}>·</span>
-        <span>Built with React</span>
-      </footer>
+
     </div>
   );
 }
 
+
+
 /* Reusable Year Section component */
-function YearSection({ year, weight, sem1, sem2, onChange }) {
+const YearSection = React.memo(function YearSection({ year, weight, sem1, sem2, onChange }) {
   return (
     <div style={{
       border: '1px solid #d1d9e0',
@@ -501,10 +677,10 @@ function YearSection({ year, weight, sem1, sem2, onChange }) {
       </div>
     </div>
   );
-}
+});
 
 /* Reusable Slider component */
-function SliderField({ label, value, onChange }) {
+const SliderField = React.memo(function SliderField({ label, value, onChange }) {
   return (
     <div>
       <div style={{
@@ -549,4 +725,4 @@ function SliderField({ label, value, onChange }) {
       </div>
     </div>
   );
-}
+});

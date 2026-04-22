@@ -11,21 +11,18 @@ const gradePoints = {
 export default function GPADashboard() {
   const [activeTab, setActiveTab] = useState('calculator');
 
-  // State for Semester GPA Calculator
   const [courses, setCourses] = useState([
     { id: 1, name: 'Module 1', credits: 3, grade: 'A' },
     { id: 2, name: 'Module 2', credits: 3, grade: 'B+' },
     { id: 3, name: 'Module 3', credits: 2, grade: 'A-' }
   ]);
 
-  // State for Target WGPA Calculator
   const [targets, setTargets] = useState({
     y2s1: 3.33, y2s2: 3.75,
     y3s1: 3.75, y3s2: 3.75,
     y4s1: 3.75, y4s2: 3.75
   });
 
-  // Calculate Semester GPA
   const calculateGPA = () => {
     let totalCredits = 0;
     let totalPoints = 0;
@@ -36,12 +33,10 @@ export default function GPADashboard() {
     return totalCredits === 0 ? 0 : (totalPoints / totalCredits).toFixed(2);
   };
 
-  // Calculate Target WGPA (Y1=0%, Y2=20%, Y3=30%, Y4=50%)
   const calculateWGPA = () => {
     const y2Avg = (Number(targets.y2s1) + Number(targets.y2s2)) / 2;
     const y3Avg = (Number(targets.y3s1) + Number(targets.y3s2)) / 2;
     const y4Avg = (Number(targets.y4s1) + Number(targets.y4s2)) / 2;
-
     const wgpa = (y2Avg * 0.20) + (y3Avg * 0.30) + (y4Avg * 0.50);
     return wgpa.toFixed(2);
   };
@@ -64,185 +59,493 @@ export default function GPADashboard() {
     setTargets({ ...targets, [sem]: value });
   };
 
+  const getGPAColor = (gpa) => {
+    const val = parseFloat(gpa);
+    if (val >= 3.70) return { bg: '#dafbe1', border: '#aceebb', text: '#1a7f37' };
+    if (val >= 3.00) return { bg: '#ddf4ff', border: '#b6e3ff', text: '#0969da' };
+    if (val >= 2.00) return { bg: '#fff8c5', border: '#eac54f', text: '#9a6700' };
+    return { bg: '#ffebe9', border: '#ffcecb', text: '#d1242f' };
+  };
+
+  const gpaVal = calculateGPA();
+  const wgpaVal = calculateWGPA();
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans text-gray-800">
-      <div className="max-w-4xl mx-auto">
-
-        {/* Header */}
-        <div className="flex items-center space-x-3 mb-8">
-          <GraduationCap className="w-10 h-10 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">University Performance Dashboard</h1>
+    <div style={{ backgroundColor: '#ffffff', minHeight: '100vh' }}>
+      {/* Top nav bar */}
+      <header
+        style={{
+          borderBottom: '1px solid #d1d9e0',
+          backgroundColor: '#f6f8fa',
+          padding: '12px 0',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <div style={{
+          maxWidth: '960px',
+          margin: '0 auto',
+          padding: '0 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}>
+          <GraduationCap style={{ width: '24px', height: '24px', color: '#1f2328' }} />
+          <span style={{ fontSize: '16px', fontWeight: 600, color: '#1f2328' }}>
+            GPA Calculator
+          </span>
         </div>
+      </header>
 
-        {/* Tabs */}
-        <div className="flex space-x-2 mb-6 bg-white p-1 rounded-xl shadow-sm w-fit">
+      <main style={{
+        maxWidth: '960px',
+        margin: '0 auto',
+        padding: '24px 16px',
+      }}>
+
+        {/* Tab buttons */}
+        <div style={{
+          display: 'flex',
+          gap: '0',
+          borderBottom: '1px solid #d1d9e0',
+          marginBottom: '24px',
+        }}>
           <button
             onClick={() => setActiveTab('calculator')}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'calculator' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: activeTab === 'calculator' ? '#1f2328' : '#636c76',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'calculator' ? '2px solid #fd8c73' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <Calculator className="w-5 h-5" />
+            <Calculator style={{ width: '16px', height: '16px' }} />
             <span>Semester GPA</span>
           </button>
           <button
             onClick={() => setActiveTab('target')}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'target' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: activeTab === 'target' ? '#1f2328' : '#636c76',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'target' ? '2px solid #fd8c73' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <Target className="w-5 h-5" />
+            <Target style={{ width: '16px', height: '16px' }} />
             <span>WGPA Target</span>
           </button>
         </div>
 
-        {/* Tab 1: Semester GPA Calculator */}
+        {/* Tab 1: Semester GPA */}
         {activeTab === 'calculator' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Calculate Current Semester GPA</h2>
+          <div>
+            <div style={{
+              border: '1px solid #d1d9e0',
+              borderRadius: '6px',
+              overflow: 'hidden',
+            }}>
+              {/* Card header */}
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#f6f8fa',
+                borderBottom: '1px solid #d1d9e0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2328', margin: 0 }}>
+                  Calculate Current Semester GPA
+                </h2>
+                <button
+                  onClick={handleAddCourse}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#ffffff',
+                    backgroundColor: '#1f883d',
+                    border: '1px solid rgba(27,31,36,0.15)',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={e => e.target.style.backgroundColor = '#1a7f37'}
+                  onMouseLeave={e => e.target.style.backgroundColor = '#1f883d'}
+                >
+                  <Plus style={{ width: '14px', height: '14px' }} />
+                  Add Module
+                </button>
+              </div>
 
-            <div className="space-y-4 mb-6">
-              {courses.map((course, index) => (
-                <div key={course.id} className="flex flex-wrap md:flex-nowrap items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-500 w-6">{index + 1}.</span>
-                  <input
-                    type="text"
-                    placeholder="Module Name (Optional)"
-                    value={course.name}
-                    onChange={(e) => handleCourseChange(course.id, 'name', e.target.value)}
-                    className="flex-1 min-w-[200px] p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm text-gray-600 font-medium">Credits:</label>
-                    <input
-                      type="number"
-                      min="1" max="8"
-                      value={course.credits}
-                      onChange={(e) => handleCourseChange(course.id, 'credits', e.target.value)}
-                      className="w-20 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm text-gray-600 font-medium">Grade:</label>
-                    <select
-                      value={course.grade}
-                      onChange={(e) => handleCourseChange(course.id, 'grade', e.target.value)}
-                      className="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-700"
-                    >
-                      {Object.keys(gradePoints).map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveCourse(course.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                    title="Remove Module"
+              {/* Course rows */}
+              <div>
+                {courses.map((course, index) => (
+                  <div
+                    key={course.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      borderBottom: index < courses.length - 1 ? '1px solid #d1d9e0' : 'none',
+                      backgroundColor: index % 2 === 0 ? '#ffffff' : '#f6f8fa',
+                      flexWrap: 'wrap',
+                    }}
                   >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#636c76',
+                      minWidth: '20px',
+                    }}>
+                      {index + 1}.
+                    </span>
+
+                    <input
+                      type="text"
+                      placeholder="Module Name"
+                      value={course.name}
+                      onChange={(e) => handleCourseChange(course.id, 'name', e.target.value)}
+                      style={{
+                        flex: '1 1 180px',
+                        padding: '5px 12px',
+                        fontSize: '14px',
+                        border: '1px solid #d1d9e0',
+                        borderRadius: '6px',
+                        backgroundColor: '#ffffff',
+                        color: '#1f2328',
+                        outline: 'none',
+                        minWidth: '0',
+                      }}
+                      onFocus={e => e.target.style.borderColor = '#0969da'}
+                      onBlur={e => e.target.style.borderColor = '#d1d9e0'}
+                    />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', color: '#636c76', fontWeight: 500 }}>Credits</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="8"
+                        value={course.credits}
+                        onChange={(e) => handleCourseChange(course.id, 'credits', e.target.value)}
+                        style={{
+                          width: '60px',
+                          padding: '5px 8px',
+                          fontSize: '14px',
+                          border: '1px solid #d1d9e0',
+                          borderRadius: '6px',
+                          backgroundColor: '#ffffff',
+                          color: '#1f2328',
+                          outline: 'none',
+                          textAlign: 'center',
+                        }}
+                        onFocus={e => e.target.style.borderColor = '#0969da'}
+                        onBlur={e => e.target.style.borderColor = '#d1d9e0'}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', color: '#636c76', fontWeight: 500 }}>Grade</label>
+                      <select
+                        value={course.grade}
+                        onChange={(e) => handleCourseChange(course.id, 'grade', e.target.value)}
+                        style={{
+                          width: '72px',
+                          padding: '5px 8px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          border: '1px solid #d1d9e0',
+                          borderRadius: '6px',
+                          backgroundColor: '#ffffff',
+                          color: '#1f2328',
+                          outline: 'none',
+                          cursor: 'pointer',
+                        }}
+                        onFocus={e => e.target.style.borderColor = '#0969da'}
+                        onBlur={e => e.target.style.borderColor = '#d1d9e0'}
+                      >
+                        {Object.keys(gradePoints).map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => handleRemoveCourse(course.id)}
+                      style={{
+                        padding: '4px',
+                        color: '#636c76',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: courses.length > 1 ? 'pointer' : 'not-allowed',
+                        opacity: courses.length > 1 ? 1 : 0.4,
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => { if (courses.length > 1) e.target.style.color = '#d1242f'; }}
+                      onMouseLeave={e => e.target.style.color = '#636c76'}
+                      title="Remove Module"
+                    >
+                      <Trash2 style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <button
-              onClick={handleAddCourse}
-              className="flex items-center space-x-2 text-blue-600 font-semibold hover:text-blue-800 transition-colors mb-8"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Module</span>
-            </button>
-
-            <div className="bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center border border-blue-100">
-              <span className="text-gray-600 font-medium mb-1">Your Semester GPA is</span>
-              <span className="text-5xl font-extrabold text-blue-700">{calculateGPA()}</span>
+            {/* GPA Result */}
+            <div style={{
+              marginTop: '20px',
+              border: `1px solid ${getGPAColor(gpaVal).border}`,
+              borderRadius: '6px',
+              backgroundColor: getGPAColor(gpaVal).bg,
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '14px', color: '#636c76', fontWeight: 500, marginBottom: '4px' }}>
+                Your Semester GPA
+              </div>
+              <div style={{
+                fontSize: '48px',
+                fontWeight: 700,
+                color: getGPAColor(gpaVal).text,
+                lineHeight: 1.2,
+              }}>
+                {gpaVal}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Tab 2: WGPA Target Calculator */}
+        {/* Tab 2: WGPA Target */}
         {activeTab === 'target' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <div className="mb-6 border-b pb-4">
-              <h2 className="text-xl font-bold text-gray-800">Degree Class Target Planner</h2>
-              <p className="text-gray-500 text-sm mt-1">Adjust your expected GPA for future semesters to see your final WGPA.</p>
-              <div className="flex gap-4 mt-3">
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Year 2: 20%</span>
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Year 3: 30%</span>
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Year 4: 50%</span>
+          <div>
+            <div style={{
+              border: '1px solid #d1d9e0',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              marginBottom: '20px',
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#f6f8fa',
+                borderBottom: '1px solid #d1d9e0',
+              }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2328', margin: 0 }}>
+                  Degree Class Target Planner
+                </h2>
+                <p style={{ fontSize: '12px', color: '#636c76', margin: '4px 0 0' }}>
+                  Adjust your expected GPA for future semesters to see your final WGPA.
+                </p>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Year 2', weight: '20%' },
+                    { label: 'Year 3', weight: '30%' },
+                    { label: 'Year 4', weight: '50%' },
+                  ].map(item => (
+                    <span key={item.label} style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      backgroundColor: '#ddf4ff',
+                      color: '#0969da',
+                      borderRadius: '20px',
+                      border: '1px solid #b6e3ff',
+                    }}>
+                      {item.label}: {item.weight}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Year sections */}
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Year 2 */}
+                <YearSection
+                  year="Year 2"
+                  weight="20%"
+                  sem1={{ key: 'y2s1', value: targets.y2s1 }}
+                  sem2={{ key: 'y2s2', value: targets.y2s2 }}
+                  onChange={handleTargetChange}
+                />
+
+                {/* Year 3 */}
+                <YearSection
+                  year="Year 3"
+                  weight="30%"
+                  sem1={{ key: 'y3s1', value: targets.y3s1 }}
+                  sem2={{ key: 'y3s2', value: targets.y3s2 }}
+                  onChange={handleTargetChange}
+                />
+
+                {/* Year 4 */}
+                <YearSection
+                  year="Year 4"
+                  weight="50%"
+                  sem1={{ key: 'y4s1', value: targets.y4s1 }}
+                  sem2={{ key: 'y4s2', value: targets.y4s2 }}
+                  onChange={handleTargetChange}
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              {/* Year 2 */}
-              <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <h3 className="font-bold text-gray-700 flex items-center justify-between">
-                  <span>Year 2</span> <span className="text-sm font-normal text-gray-500">Weight: 20%</span>
-                </h3>
-                <div>
-                  <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                    <span>Semester 1</span> <span>{targets.y2s1}</span>
-                  </label>
-                  <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y2s1} onChange={(e) => handleTargetChange('y2s1', e.target.value)} className="w-full accent-blue-600" />
-                </div>
-                <div>
-                  <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                    <span>Semester 2</span> <span>{targets.y2s2}</span>
-                  </label>
-                  <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y2s2} onChange={(e) => handleTargetChange('y2s2', e.target.value)} className="w-full accent-blue-600" />
-                </div>
+            {/* WGPA Result */}
+            <div style={{
+              border: `1px solid ${getGPAColor(wgpaVal).border}`,
+              borderRadius: '6px',
+              backgroundColor: getGPAColor(wgpaVal).bg,
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '14px', color: '#636c76', fontWeight: 500, marginBottom: '4px' }}>
+                Estimated Final WGPA
               </div>
-
-              {/* Year 3 */}
-              <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <h3 className="font-bold text-gray-700 flex items-center justify-between">
-                  <span>Year 3</span> <span className="text-sm font-normal text-gray-500">Weight: 30%</span>
-                </h3>
-                <div>
-                  <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                    <span>Semester 1</span> <span>{targets.y3s1}</span>
-                  </label>
-                  <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y3s1} onChange={(e) => handleTargetChange('y3s1', e.target.value)} className="w-full accent-blue-600" />
-                </div>
-                <div>
-                  <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                    <span>Semester 2</span> <span>{targets.y3s2}</span>
-                  </label>
-                  <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y3s2} onChange={(e) => handleTargetChange('y3s2', e.target.value)} className="w-full accent-blue-600" />
-                </div>
+              <div style={{
+                fontSize: '48px',
+                fontWeight: 700,
+                color: getGPAColor(wgpaVal).text,
+                lineHeight: 1.2,
+              }}>
+                {wgpaVal}
               </div>
-
-              {/* Year 4 */}
-              <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2">
-                <h3 className="font-bold text-gray-700 flex items-center justify-between">
-                  <span>Year 4</span> <span className="text-sm font-normal text-gray-500">Weight: 50%</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                      <span>Semester 1</span> <span>{targets.y4s1}</span>
-                    </label>
-                    <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y4s1} onChange={(e) => handleTargetChange('y4s1', e.target.value)} className="w-full accent-blue-600" />
-                  </div>
-                  <div>
-                    <label className="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                      <span>Semester 2</span> <span>{targets.y4s2}</span>
-                    </label>
-                    <input type="range" min="2.00" max="4.00" step="0.01" value={targets.y4s2} onChange={(e) => handleTargetChange('y4s2', e.target.value)} className="w-full accent-blue-600" />
-                  </div>
+              {parseFloat(wgpaVal) >= 3.70 && (
+                <div style={{
+                  marginTop: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#1a7f37',
+                  backgroundColor: '#dafbe1',
+                  border: '1px solid #aceebb',
+                  borderRadius: '20px',
+                }}>
+                  🎓 First Class Target Reached!
                 </div>
-              </div>
-            </div>
-
-            {/* WGPA Final Result */}
-            <div className={`rounded-xl p-8 flex flex-col items-center justify-center border transition-colors ${calculateWGPA() >= 3.70 ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-              <span className="text-gray-600 font-medium mb-2 text-lg">Estimated Final WGPA</span>
-              <span className={`text-6xl font-extrabold ${calculateWGPA() >= 3.70 ? 'text-green-700' : 'text-blue-700'}`}>{calculateWGPA()}</span>
-              {calculateWGPA() >= 3.70 && (
-                <span className="mt-3 bg-green-100 text-green-800 px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
-                  First Class Target Reached!
-                </span>
               )}
             </div>
           </div>
         )}
+      </main>
 
+      {/* Footer */}
+      <footer style={{
+        borderTop: '1px solid #d1d9e0',
+        padding: '24px 16px',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#636c76',
+        marginTop: '40px',
+      }}>
+        <span>GPA Calculator</span>
+        <span style={{ margin: '0 8px' }}>·</span>
+        <span>Built with React</span>
+      </footer>
+    </div>
+  );
+}
+
+/* Reusable Year Section component */
+function YearSection({ year, weight, sem1, sem2, onChange }) {
+  return (
+    <div style={{
+      border: '1px solid #d1d9e0',
+      borderRadius: '6px',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '10px 16px',
+        backgroundColor: '#f6f8fa',
+        borderBottom: '1px solid #d1d9e0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1f2328' }}>{year}</span>
+        <span style={{ fontSize: '12px', color: '#636c76' }}>Weight: {weight}</span>
+      </div>
+      <div style={{
+        padding: '16px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '16px',
+      }}>
+        <SliderField label="Semester 1" value={sem1.value} onChange={(v) => onChange(sem1.key, v)} />
+        <SliderField label="Semester 2" value={sem2.value} onChange={(v) => onChange(sem2.key, v)} />
+      </div>
+    </div>
+  );
+}
+
+/* Reusable Slider component */
+function SliderField({ label, value, onChange }) {
+  return (
+    <div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '6px',
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 500, color: '#636c76' }}>{label}</span>
+        <span style={{
+          fontSize: '14px',
+          fontWeight: 600,
+          color: '#1f2328',
+          fontFamily: 'monospace',
+        }}>
+          {Number(value).toFixed(2)}
+        </span>
+      </div>
+      <input
+        type="range"
+        min="2.00"
+        max="4.00"
+        step="0.01"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: '100%',
+          accentColor: '#0969da',
+          height: '6px',
+          cursor: 'pointer',
+        }}
+      />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: '10px',
+        color: '#8b949e',
+        marginTop: '2px',
+      }}>
+        <span>2.00</span>
+        <span>4.00</span>
       </div>
     </div>
   );
